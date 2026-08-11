@@ -1,5 +1,4 @@
 import os
-import glob
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms.functional as TF
@@ -25,7 +24,7 @@ class RestorationDataset(Dataset):
         self.scale_factor = scale_factor
         self.is_train = is_train
 
-        # Load file lists while explicitly filtering out hidden/macOS metadata files (._*)
+        # Load file lists filtering out macOS metadata files (._*)
         self.lr_filenames = sorted([
             os.path.join(lr_dir, f) for f in os.listdir(lr_dir) 
             if f.endswith('.npy') and not f.startswith('._')
@@ -43,29 +42,19 @@ class RestorationDataset(Dataset):
         return len(self.lr_filenames)
 
     def __getitem__(self, idx):
-        lr_path = self.lr_filenames[idx]
-        gt_path = self.gt_filenames[idx]
-
         # Load numpy arrays
-        lr_img = np.load(lr_path).astype(np.float32)
-        gt_img = np.load(gt_path).astype(np.float32)
-
-        # Handle dimension ordering if array is (H, W, C) vs (C, H, W)
-        if lr_img.ndim == 2:  # Grayscale (H, W) -> (1, H, W)
-            lr_img = np.expand_dims(lr_img, axis=0)
-            gt_img = np.expand_dims(gt_img, axis=0)
-        elif lr_img.ndim == 3 and lr_img.shape[-1] in [1, 3]:  # (H, W, C) -> transpose to (C, H, W)
-            lr_img = np.transpose(lr_img, (2, 0, 1))
-            gt_img = np.transpose(gt_img, (2, 0, 1))
+        lr_img = np.load(self.lr_filenames[idx]).astype(np.float32)
+        gt_img = np.load(self.gt_filenames[idx]).astype(np.float32)
 
         # Percentile-based scaling on NoisyLR
         lr_img = percentile_normalize(lr_img)
-        gt_img = np.clip(gt_img, 0.0, 1.0)  # GT strictly in [0, 1]
+        gt_img = np.clip(gt_img, 0.0, 1.0)  # Ensure GT is strictly in [0, 1]
 
-        lr_tensor = torch.from_numpy(lr_img)
-        gt_tensor = torch.from_numpy(gt_img)
+        # Add Channel dimension: (H, W) -> (1, H, W)
+        lr_tensor = torch.from_numpy(lr_img).unsqueeze(0)
+        gt_tensor = torch.from_numpy(gt_img).unsqueeze(0)
 
-        # Training-time cropping and augmentations
+        # Training-time patch cropping & augmentations
         if self.is_train:
             _, h_lr, w_lr = lr_tensor.shape
             p_lr = self.patch_size_lr
@@ -82,7 +71,7 @@ class RestorationDataset(Dataset):
             h_start_gt, w_start_gt = h_start * self.scale_factor, w_start * self.scale_factor
             gt_tensor = gt_tensor[:, h_start_gt:h_start_gt + p_gt, w_start_gt:w_start_gt + p_gt]
 
-            # Augmentations (Horizontal flip & rotations)
+            # Augmentations (Horizontal flip & 90/180/270 rotations)
             if torch.rand(1).item() > 0.5:
                 lr_tensor = TF.hflip(lr_tensor)
                 gt_tensor = TF.hflip(gt_tensor)
@@ -93,3 +82,20 @@ class RestorationDataset(Dataset):
                 gt_tensor = torch.rot90(gt_tensor, rot_k, [1, 2])
 
         return lr_tensor, gt_tensor
+
+def get_dataloader(lr_dir, gt_dir, batch_size=16, patch_size_lr=64, scale_factor=2, is_train=True):
+    dataset = RestorationDataset(
+        lr_dir=lr_dir,
+        gt_dir=gt_dir,
+        patch_size_lr=patch_size_lr,
+        scale_factor=scale_factor,
+        is_train=is_train
+    )
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=is_train,
+        num_workers=2,
+        pin_memory=True
+    )
+    return loader
