@@ -1,0 +1,23 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Datasets & Heavy Files (DO NOT COMMIT DATA)
+train/
+val/
+data/
+*.npy
+*.pth
+*.pt
+
+# IDE / OS junk
+.DS_Store
+.vscode/
+_MACOSX/
