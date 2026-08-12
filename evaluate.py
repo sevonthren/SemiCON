@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
-# Import the model (we will swap DummyRestorationModel for Person B's model later)
+# Import the model
 from models.dummy_model import DummyRestorationModel
 
 def percentile_normalize(img_np, p_min=1, p_max=99):
