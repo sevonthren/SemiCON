@@ -13,8 +13,6 @@ __pycache__/
 train/
 val/
 data/
-*.npy
-*.pth
 *.pt
 
 # IDE / OS junk
