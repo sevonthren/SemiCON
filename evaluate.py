@@ -1,5 +1,6 @@
 import os
 import time
+import argparse
 import numpy as np
 import torch
 from torch.cuda.amp import autocast
@@ -51,8 +52,31 @@ def run_inference(model_path, test_dir, output_dir, batch_size=16):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the trained restoration model on a directory of "
+                     "test .npy images and save restored outputs."
+    )
+    parser.add_argument(
+        "--test_dir", type=str, required=True,
+        help="Path to directory containing test .npy input images",
+    )
+    parser.add_argument(
+        "--output_dir", type=str, required=True,
+        help="Path to directory where restored outputs will be written",
+    )
+    parser.add_argument(
+        "--model_path", type=str, default="best_model.pth",
+        help="Path to the trained model checkpoint (default: best_model.pth)",
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=16,
+        help="Inference batch size (default: 16)",
+    )
+    args = parser.parse_args()
+
     run_inference(
-        model_path="best_model.pth",
-        test_dir="./data/test/NoisyLR",
-        output_dir="./submission_outputs"
+        model_path=args.model_path,
+        test_dir=args.test_dir,
+        output_dir=args.output_dir,
+        batch_size=args.batch_size,
     )
